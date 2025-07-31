@@ -1,0 +1,432 @@
+// =============================================
+// ESTRUTURA DO PROJETO
+// =============================================
+
+/*
+FluxoCaixa.sln
+├── src/
+│   ├── FluxoCaixa.Domain/
+│   │   ├── Entities/
+│   │   ├── Enums/
+│   │   ├── Interfaces/
+│   │   └── ValueObjects/
+│   ├── FluxoCaixa.Application/
+│   │   ├── DTOs/
+│   │   ├── Interfaces/
+│   │   └── Services/
+│   ├── FluxoCaixa.Infrastructure/
+│   │   ├── Data/
+│   │   ├── Repositories/
+│   │   └── Configuration/
+│   └── FluxoCaixa.API/
+│       ├── Controllers/
+│       ├── Middleware/
+│       └── Configuration/
+└── tests/
+    ├── FluxoCaixa.UnitTests/
+    └── FluxoCaixa.IntegrationTests/
+*/
+
+// =============================================
+// DOMAIN LAYER
+// =============================================
+
+// FluxoCaixa.Domain/Enums/TipoLancamento.cs
+namespace FluxoCaixa.Domain.Enums
+{
+    public enum TipoLancamento
+    {
+        Debito = 1,
+        Credito = 2
+    }
+}
+
+// FluxoCaixa.Domain/ValueObjects/Money.cs
+using System.Text.Json.Serialization;
+
+namespace FluxoCaixa.Domain.ValueObjects
+{
+    public record Money
+    {
+        public decimal Valor { get; init; }
+
+        [JsonConstructor]
+        public Money(decimal valor)
+        {
+            if (valor < 0)
+                throw new ArgumentException("Valor não pode ser negativo", nameof(valor));
+            
+            Valor = Math.Round(valor, 2);
+        }
+
+        public static Money Zero => new(0);
+
+        public static Money operator +(Money left, Money right) => new(left.Valor + right.Valor);
+        public static Money operator -(Money left, Money right) => new(left.Valor - right.Valor);
+
+        public override string ToString() => Valor.ToString("C");
+    }
+}
+
+// FluxoCaixa.Domain/Entities/Lancamento.cs
+using FluxoCaixa.Domain.Enums;
+using FluxoCaixa.Domain.ValueObjects;
+
+namespace FluxoCaixa.Domain.Entities
+{
+    public class Lancamento
+    {
+        public Guid Id { get; private set; }
+        public DateTime DataLancamento { get; private set; }
+        public TipoLancamento Tipo { get; private set; }
+        public Money Valor { get; private set; }
+        public string Descricao { get; private set; }
+        public DateTime DataCriacao { get; private set; }
+
+        protected Lancamento() { } // Para EF
+
+        public Lancamento(TipoLancamento tipo, Money valor, string descricao, DateTime? dataLancamento = null)
+        {
+            if (string.IsNullOrWhiteSpace(descricao))
+                throw new ArgumentException("Descrição é obrigatória", nameof(descricao));
+
+            Id = Guid.NewGuid();
+            Tipo = tipo;
+            Valor = valor ?? throw new ArgumentNullException(nameof(valor));
+            Descricao = descricao.Trim();
+            DataLancamento = dataLancamento?.Date ?? DateTime.Today;
+            DataCriacao = DateTime.UtcNow;
+        }
+
+        public Money ObterValorComSinal()
+        {
+            return Tipo == TipoLancamento.Credito 
+                ? Valor 
+                : new Money(-Valor.Valor);
+        }
+    }
+}
+
+// FluxoCaixa.Domain/Entities/ConsolidadoDiario.cs
+using FluxoCaixa.Domain.ValueObjects;
+
+namespace FluxoCaixa.Domain.Entities
+{
+    public class ConsolidadoDiario
+    {
+        public DateTime Data { get; private set; }
+        public Money TotalCreditos { get; private set; }
+        public Money TotalDebitos { get; private set; }
+        public Money SaldoDiario { get; private set; }
+        public int QuantidadeLancamentos { get; private set; }
+        public DateTime UltimaAtualizacao { get; private set; }
+
+        protected ConsolidadoDiario() { } // Para EF
+
+        public ConsolidadoDiario(DateTime data, Money totalCreditos, Money totalDebitos, int quantidadeLancamentos)
+        {
+            Data = data.Date;
+            TotalCreditos = totalCreditos ?? Money.Zero;
+            TotalDebitos = totalDebitos ?? Money.Zero;
+            SaldoDiario = TotalCreditos - TotalDebitos;
+            QuantidadeLancamentos = quantidadeLancamentos;
+            UltimaAtualizacao = DateTime.UtcNow;
+        }
+
+        public void Atualizar(Money totalCreditos, Money totalDebitos, int quantidadeLancamentos)
+        {
+            TotalCreditos = totalCreditos ?? Money.Zero;
+            TotalDebitos = totalDebitos ?? Money.Zero;
+            SaldoDiario = TotalCreditos - TotalDebitos;
+            QuantidadeLancamentos = quantidadeLancamentos;
+            UltimaAtualizacao = DateTime.UtcNow;
+        }
+    }
+}
+
+// FluxoCaixa.Domain/Interfaces/ILancamentoRepository.cs
+using FluxoCaixa.Domain.Entities;
+
+namespace FluxoCaixa.Domain.Interfaces
+{
+    public interface ILancamentoRepository
+    {
+        Task<Lancamento> AdicionarAsync(Lancamento lancamento);
+        Task<Lancamento?> ObterPorIdAsync(Guid id);
+        Task<IEnumerable<Lancamento>> ObterPorDataAsync(DateTime data);
+        Task<IEnumerable<Lancamento>> ObterPorPeriodoAsync(DateTime dataInicio, DateTime dataFim);
+        Task<bool> ExcluirAsync(Guid id);
+    }
+}
+
+// FluxoCaixa.Domain/Interfaces/IConsolidadoDiarioRepository.cs
+using FluxoCaixa.Domain.Entities;
+
+namespace FluxoCaixa.Domain.Interfaces
+{
+    public interface IConsolidadoDiarioRepository
+    {
+        Task<ConsolidadoDiario?> ObterPorDataAsync(DateTime data);
+        Task<ConsolidadoDiario> SalvarAsync(ConsolidadoDiario consolidado);
+        Task<IEnumerable<ConsolidadoDiario>> ObterPorPeriodoAsync(DateTime dataInicio, DateTime dataFim);
+    }
+}
+
+// =============================================
+// APPLICATION LAYER
+// =============================================
+
+// FluxoCaixa.Application/DTOs/LancamentoDto.cs
+using FluxoCaixa.Domain.Enums;
+
+namespace FluxoCaixa.Application.DTOs
+{
+    public record LancamentoRequestDto(
+        TipoLancamento Tipo,
+        decimal Valor,
+        string Descricao,
+        DateTime? DataLancamento = null
+    );
+
+    public record LancamentoResponseDto(
+        Guid Id,
+        DateTime DataLancamento,
+        TipoLancamento Tipo,
+        decimal Valor,
+        string Descricao,
+        DateTime DataCriacao
+    );
+}
+
+// FluxoCaixa.Application/DTOs/ConsolidadoDto.cs
+namespace FluxoCaixa.Application.DTOs
+{
+    public record ConsolidadoDiarioDto(
+        DateTime Data,
+        decimal TotalCreditos,
+        decimal TotalDebitos,
+        decimal SaldoDiario,
+        int QuantidadeLancamentos,
+        DateTime UltimaAtualizacao
+    );
+
+    public record RelatorioConsolidadoRequestDto(
+        DateTime DataInicio,
+        DateTime DataFim
+    );
+}
+
+// FluxoCaixa.Application/Interfaces/ILancamentoService.cs
+using FluxoCaixa.Application.DTOs;
+
+namespace FluxoCaixa.Application.Interfaces
+{
+    public interface ILancamentoService
+    {
+        Task<LancamentoResponseDto> CriarLancamentoAsync(LancamentoRequestDto request);
+        Task<LancamentoResponseDto?> ObterLancamentoPorIdAsync(Guid id);
+        Task<IEnumerable<LancamentoResponseDto>> ObterLancamentosPorDataAsync(DateTime data);
+        Task<bool> ExcluirLancamentoAsync(Guid id);
+    }
+}
+
+// FluxoCaixa.Application/Interfaces/IConsolidadoService.cs
+using FluxoCaixa.Application.DTOs;
+
+namespace FluxoCaixa.Application.Interfaces
+{
+    public interface IConsolidadoService
+    {
+        Task<ConsolidadoDiarioDto> ObterConsolidadoDiarioAsync(DateTime data);
+        Task<IEnumerable<ConsolidadoDiarioDto>> ObterRelatorioConsolidadoAsync(DateTime dataInicio, DateTime dataFim);
+        Task RecalcularConsolidadoAsync(DateTime data);
+    }
+}
+
+// FluxoCaixa.Application/Services/LancamentoService.cs
+using FluxoCaixa.Application.DTOs;
+using FluxoCaixa.Application.Interfaces;
+using FluxoCaixa.Domain.Entities;
+using FluxoCaixa.Domain.Interfaces;
+using FluxoCaixa.Domain.ValueObjects;
+
+namespace FluxoCaixa.Application.Services
+{
+    public class LancamentoService : ILancamentoService
+    {
+        private readonly ILancamentoRepository _lancamentoRepository;
+        private readonly IConsolidadoService _consolidadoService;
+
+        public LancamentoService(
+            ILancamentoRepository lancamentoRepository,
+            IConsolidadoService consolidadoService)
+        {
+            _lancamentoRepository = lancamentoRepository;
+            _consolidadoService = consolidadoService;
+        }
+
+        public async Task<LancamentoResponseDto> CriarLancamentoAsync(LancamentoRequestDto request)
+        {
+            var valor = new Money(request.Valor);
+            var lancamento = new Lancamento(
+                request.Tipo,
+                valor,
+                request.Descricao,
+                request.DataLancamento
+            );
+
+            var resultado = await _lancamentoRepository.AdicionarAsync(lancamento);
+            
+            // Recalcular consolidado da data
+            await _consolidadoService.RecalcularConsolidadoAsync(resultado.DataLancamento);
+
+            return MapearParaDto(resultado);
+        }
+
+        public async Task<LancamentoResponseDto?> ObterLancamentoPorIdAsync(Guid id)
+        {
+            var lancamento = await _lancamentoRepository.ObterPorIdAsync(id);
+            return lancamento != null ? MapearParaDto(lancamento) : null;
+        }
+
+        public async Task<IEnumerable<LancamentoResponseDto>> ObterLancamentosPorDataAsync(DateTime data)
+        {
+            var lancamentos = await _lancamentoRepository.ObterPorDataAsync(data);
+            return lancamentos.Select(MapearParaDto);
+        }
+
+        public async Task<bool> ExcluirLancamentoAsync(Guid id)
+        {
+            var lancamento = await _lancamentoRepository.ObterPorIdAsync(id);
+            if (lancamento == null) return false;
+
+            var dataLancamento = lancamento.DataLancamento;
+            var resultado = await _lancamentoRepository.ExcluirAsync(id);
+            
+            if (resultado)
+            {
+                // Recalcular consolidado da data
+                await _consolidadoService.RecalcularConsolidadoAsync(dataLancamento);
+            }
+
+            return resultado;
+        }
+
+        private static LancamentoResponseDto MapearParaDto(Lancamento lancamento) =>
+            new(
+                lancamento.Id,
+                lancamento.DataLancamento,
+                lancamento.Tipo,
+                lancamento.Valor.Valor,
+                lancamento.Descricao,
+                lancamento.DataCriacao
+            );
+    }
+}
+
+// FluxoCaixa.Application/Services/ConsolidadoService.cs
+using FluxoCaixa.Application.DTOs;
+using FluxoCaixa.Application.Interfaces;
+using FluxoCaixa.Domain.Entities;
+using FluxoCaixa.Domain.Enums;
+using FluxoCaixa.Domain.Interfaces;
+using FluxoCaixa.Domain.ValueObjects;
+
+namespace FluxoCaixa.Application.Services
+{
+    public class ConsolidadoService : IConsolidadoService
+    {
+        private readonly IConsolidadoDiarioRepository _consolidadoRepository;
+        private readonly ILancamentoRepository _lancamentoRepository;
+
+        public ConsolidadoService(
+            IConsolidadoDiarioRepository consolidadoRepository,
+            ILancamentoRepository lancamentoRepository)
+        {
+            _consolidadoRepository = consolidadoRepository;
+            _lancamentoRepository = lancamentoRepository;
+        }
+
+        public async Task<ConsolidadoDiarioDto> ObterConsolidadoDiarioAsync(DateTime data)
+        {
+            var consolidado = await _consolidadoRepository.ObterPorDataAsync(data.Date);
+            
+            if (consolidado == null)
+            {
+                await RecalcularConsolidadoAsync(data.Date);
+                consolidado = await _consolidadoRepository.ObterPorDataAsync(data.Date);
+            }
+
+            return consolidado != null ? MapearParaDto(consolidado) : CriarConsolidadoVazio(data.Date);
+        }
+
+        public async Task<IEnumerable<ConsolidadoDiarioDto>> ObterRelatorioConsolidadoAsync(DateTime dataInicio, DateTime dataFim)
+        {
+            var consolidados = await _consolidadoRepository.ObterPorPeriodoAsync(dataInicio.Date, dataFim.Date);
+            var consolidadosDict = consolidados.ToDictionary(c => c.Data);
+
+            var resultado = new List<ConsolidadoDiarioDto>();
+            var dataAtual = dataInicio.Date;
+
+            while (dataAtual <= dataFim.Date)
+            {
+                if (consolidadosDict.TryGetValue(dataAtual, out var consolidado))
+                {
+                    resultado.Add(MapearParaDto(consolidado));
+                }
+                else
+                {
+                    resultado.Add(CriarConsolidadoVazio(dataAtual));
+                }
+
+                dataAtual = dataAtual.AddDays(1);
+            }
+
+            return resultado;
+        }
+
+        public async Task RecalcularConsolidadoAsync(DateTime data)
+        {
+            var lancamentos = await _lancamentoRepository.ObterPorDataAsync(data.Date);
+            var lancamentosList = lancamentos.ToList();
+
+            var totalCreditos = new Money(
+                lancamentosList
+                    .Where(l => l.Tipo == TipoLancamento.Credito)
+                    .Sum(l => l.Valor.Valor)
+            );
+
+            var totalDebitos = new Money(
+                lancamentosList
+                    .Where(l => l.Tipo == TipoLancamento.Debito)
+                    .Sum(l => l.Valor.Valor)
+            );
+
+            var consolidadoExistente = await _consolidadoRepository.ObterPorDataAsync(data.Date);
+
+            if (consolidadoExistente != null)
+            {
+                consolidadoExistente.Atualizar(totalCreditos, totalDebitos, lancamentosList.Count);
+                await _consolidadoRepository.SalvarAsync(consolidadoExistente);
+            }
+            else
+            {
+                var novoConsolidado = new ConsolidadoDiario(data.Date, totalCreditos, totalDebitos, lancamentosList.Count);
+                await _consolidadoRepository.SalvarAsync(novoConsolidado);
+            }
+        }
+
+        private static ConsolidadoDiarioDto MapearParaDto(ConsolidadoDiario consolidado) =>
+            new(
+                consolidado.Data,
+                consolidado.TotalCreditos.Valor,
+                consolidado.TotalDebitos.Valor,
+                consolidado.SaldoDiario.Valor,
+                consolidado.QuantidadeLancamentos,
+                consolidado.UltimaAtualizacao
+            );
+
+        private static ConsolidadoDiarioDto CriarConsolidadoVazio(DateTime data) =>
+            new(data, 0, 0, 0, 0, DateTime.UtcNow);
+    }
+}
