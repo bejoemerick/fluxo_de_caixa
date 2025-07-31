@@ -1,0 +1,452 @@
+// =============================================
+// INFRASTRUCTURE LAYER
+// =============================================
+
+// FluxoCaixa.Infrastructure/Data/FluxoCaixaDbContext.cs
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using FluxoCaixa.Domain.Entities;
+using FluxoCaixa.Domain.ValueObjects;
+using FluxoCaixa.Domain.Enums;
+
+namespace FluxoCaixa.Infrastructure.Data
+{
+    public class FluxoCaixaDbContext : DbContext
+    {
+        public FluxoCaixaDbContext(DbContextOptions<FluxoCaixaDbContext> options) : base(options) { }
+
+        public DbSet<Lancamento> Lancamentos { get; set; }
+        public DbSet<ConsolidadoDiario> ConsolidadosDiarios { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            // Configuração para Lancamento
+            modelBuilder.Entity<Lancamento>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                
+                entity.Property(e => e.DataLancamento)
+                    .IsRequired()
+                    .HasColumnType("date");
+
+                entity.Property(e => e.Tipo)
+                    .IsRequired()
+                    .HasConversion<int>();
+
+                entity.Property(e => e.Valor)
+                    .IsRequired()
+                    .HasConversion(
+                        v => v.Valor,
+                        v => new Money(v))
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.Descricao)
+                    .IsRequired()
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.DataCriacao)
+                    .IsRequired()
+                    .HasColumnType("datetime2");
+
+                entity.HasIndex(e => e.DataLancamento);
+                entity.HasIndex(e => new { e.DataLancamento, e.Tipo });
+            });
+
+            // Configuração para ConsolidadoDiario
+            modelBuilder.Entity<ConsolidadoDiario>(entity =>
+            {
+                entity.HasKey(e => e.Data);
+
+                entity.Property(e => e.Data)
+                    .IsRequired()
+                    .HasColumnType("date");
+
+                entity.Property(e => e.TotalCreditos)
+                    .IsRequired()
+                    .HasConversion(
+                        v => v.Valor,
+                        v => new Money(v))
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.TotalDebitos)
+                    .IsRequired()
+                    .HasConversion(
+                        v => v.Valor,
+                        v => new Money(v))
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.SaldoDiario)
+                    .IsRequired()
+                    .HasConversion(
+                        v => v.Valor,
+                        v => new Money(v))
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.QuantidadeLancamentos)
+                    .IsRequired();
+
+                entity.Property(e => e.UltimaAtualizacao)
+                    .IsRequired()
+                    .HasColumnType("datetime2");
+            });
+
+            base.OnModelCreating(modelBuilder);
+        }
+    }
+}
+
+// FluxoCaixa.Infrastructure/Repositories/LancamentoRepository.cs
+using Microsoft.EntityFrameworkCore;
+using FluxoCaixa.Domain.Entities;
+using FluxoCaixa.Domain.Interfaces;
+using FluxoCaixa.Infrastructure.Data;
+
+namespace FluxoCaixa.Infrastructure.Repositories
+{
+    public class LancamentoRepository : ILancamentoRepository
+    {
+        private readonly FluxoCaixaDbContext _context;
+
+        public LancamentoRepository(FluxoCaixaDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<Lancamento> AdicionarAsync(Lancamento lancamento)
+        {
+            _context.Lancamentos.Add(lancamento);
+            await _context.SaveChangesAsync();
+            return lancamento;
+        }
+
+        public async Task<Lancamento?> ObterPorIdAsync(Guid id)
+        {
+            return await _context.Lancamentos
+                .FirstOrDefaultAsync(l => l.Id == id);
+        }
+
+        public async Task<IEnumerable<Lancamento>> ObterPorDataAsync(DateTime data)
+        {
+            return await _context.Lancamentos
+                .Where(l => l.DataLancamento.Date == data.Date)
+                .OrderBy(l => l.DataCriacao)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Lancamento>> ObterPorPeriodoAsync(DateTime dataInicio, DateTime dataFim)
+        {
+            return await _context.Lancamentos
+                .Where(l => l.DataLancamento.Date >= dataInicio.Date && l.DataLancamento.Date <= dataFim.Date)
+                .OrderBy(l => l.DataLancamento)
+                .ThenBy(l => l.DataCriacao)
+                .ToListAsync();
+        }
+
+        public async Task<bool> ExcluirAsync(Guid id)
+        {
+            var lancamento = await _context.Lancamentos.FindAsync(id);
+            if (lancamento == null) return false;
+
+            _context.Lancamentos.Remove(lancamento);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+    }
+}
+
+// FluxoCaixa.Infrastructure/Repositories/ConsolidadoDiarioRepository.cs
+using Microsoft.EntityFrameworkCore;
+using FluxoCaixa.Domain.Entities;
+using FluxoCaixa.Domain.Interfaces;
+using FluxoCaixa.Infrastructure.Data;
+
+namespace FluxoCaixa.Infrastructure.Repositories
+{
+    public class ConsolidadoDiarioRepository : IConsolidadoDiarioRepository
+    {
+        private readonly FluxoCaixaDbContext _context;
+
+        public ConsolidadoDiarioRepository(FluxoCaixaDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<ConsolidadoDiario?> ObterPorDataAsync(DateTime data)
+        {
+            return await _context.ConsolidadosDiarios
+                .FirstOrDefaultAsync(c => c.Data.Date == data.Date);
+        }
+
+        public async Task<ConsolidadoDiario> SalvarAsync(ConsolidadoDiario consolidado)
+        {
+            var existente = await _context.ConsolidadosDiarios
+                .FirstOrDefaultAsync(c => c.Data.Date == consolidado.Data.Date);
+
+            if (existente != null)
+            {
+                _context.Entry(existente).CurrentValues.SetValues(consolidado);
+            }
+            else
+            {
+                _context.ConsolidadosDiarios.Add(consolidado);
+            }
+
+            await _context.SaveChangesAsync();
+            return consolidado;
+        }
+
+        public async Task<IEnumerable<ConsolidadoDiario>> ObterPorPeriodoAsync(DateTime dataInicio, DateTime dataFim)
+        {
+            return await _context.ConsolidadosDiarios
+                .Where(c => c.Data.Date >= dataInicio.Date && c.Data.Date <= dataFim.Date)
+                .OrderBy(c => c.Data)
+                .ToListAsync();
+        }
+    }
+}
+
+// =============================================
+// API LAYER
+// =============================================
+
+// FluxoCaixa.API/Controllers/LancamentosController.cs
+using Microsoft.AspNetCore.Mvc;
+using FluxoCaixa.Application.DTOs;
+using FluxoCaixa.Application.Interfaces;
+
+namespace FluxoCaixa.API.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class LancamentosController : ControllerBase
+    {
+        private readonly ILancamentoService _lancamentoService;
+
+        public LancamentosController(ILancamentoService lancamentoService)
+        {
+            _lancamentoService = lancamentoService;
+        }
+
+        /// <summary>
+        /// Cria um novo lançamento
+        /// </summary>
+        /// <param name="request">Dados do lançamento</param>
+        /// <returns>Lançamento criado</returns>
+        [HttpPost]
+        public async Task<ActionResult<LancamentoResponseDto>> CriarLancamento([FromBody] LancamentoRequestDto request)
+        {
+            try
+            {
+                var resultado = await _lancamentoService.CriarLancamentoAsync(request);
+                return CreatedAtAction(nameof(ObterLancamento), new { id = resultado.Id }, resultado);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Obtém um lançamento por ID
+        /// </summary>
+        /// <param name="id">ID do lançamento</param>
+        /// <returns>Lançamento encontrado</returns>
+        [HttpGet("{id}")]
+        public async Task<ActionResult<LancamentoResponseDto>> ObterLancamento(Guid id)
+        {
+            var lancamento = await _lancamentoService.ObterLancamentoPorIdAsync(id);
+            
+            if (lancamento == null)
+                return NotFound();
+
+            return Ok(lancamento);
+        }
+
+        /// <summary>
+        /// Obtém lançamentos por data
+        /// </summary>
+        /// <param name="data">Data dos lançamentos (formato: yyyy-MM-dd)</param>
+        /// <returns>Lista de lançamentos da data</returns>
+        [HttpGet("por-data/{data:datetime}")]
+        public async Task<ActionResult<IEnumerable<LancamentoResponseDto>>> ObterLancamentosPorData(DateTime data)
+        {
+            var lancamentos = await _lancamentoService.ObterLancamentosPorDataAsync(data);
+            return Ok(lancamentos);
+        }
+
+        /// <summary>
+        /// Exclui um lançamento
+        /// </summary>
+        /// <param name="id">ID do lançamento</param>
+        /// <returns>Resultado da operação</returns>
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> ExcluirLancamento(Guid id)
+        {
+            var resultado = await _lancamentoService.ExcluirLancamentoAsync(id);
+            
+            if (!resultado)
+                return NotFound();
+
+            return NoContent();
+        }
+    }
+}
+
+// FluxoCaixa.API/Controllers/ConsolidadoController.cs
+using Microsoft.AspNetCore.Mvc;
+using FluxoCaixa.Application.DTOs;
+using FluxoCaixa.Application.Interfaces;
+
+namespace FluxoCaixa.API.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class ConsolidadoController : ControllerBase
+    {
+        private readonly IConsolidadoService _consolidadoService;
+
+        public ConsolidadoController(IConsolidadoService consolidadoService)
+        {
+            _consolidadoService = consolidadoService;
+        }
+
+        /// <summary>
+        /// Obtém o consolidado diário para uma data específica
+        /// </summary>
+        /// <param name="data">Data do consolidado (formato: yyyy-MM-dd)</param>
+        /// <returns>Consolidado diário</returns>
+        [HttpGet("diario/{data:datetime}")]
+        public async Task<ActionResult<ConsolidadoDiarioDto>> ObterConsolidadoDiario(DateTime data)
+        {
+            var consolidado = await _consolidadoService.ObterConsolidadoDiarioAsync(data);
+            return Ok(consolidado);
+        }
+
+        /// <summary>
+        /// Obtém relatório consolidado para um período
+        /// </summary>
+        /// <param name="dataInicio">Data de início (formato: yyyy-MM-dd)</param>
+        /// <param name="dataFim">Data de fim (formato: yyyy-MM-dd)</param>
+        /// <returns>Relatório consolidado do período</returns>
+        [HttpGet("relatorio")]
+        public async Task<ActionResult<IEnumerable<ConsolidadoDiarioDto>>> ObterRelatorioConsolidado(
+            [FromQuery] DateTime dataInicio,
+            [FromQuery] DateTime dataFim)
+        {
+            if (dataInicio > dataFim)
+            {
+                return BadRequest(new { message = "Data de início deve ser menor ou igual à data de fim" });
+            }
+
+            var relatorio = await _consolidadoService.ObterRelatorioConsolidadoAsync(dataInicio, dataFim);
+            return Ok(relatorio);
+        }
+
+        /// <summary>
+        /// Força o recálculo do consolidado para uma data específica
+        /// </summary>
+        /// <param name="data">Data para recalcular</param>
+        /// <returns>Resultado da operação</returns>
+        [HttpPost("recalcular/{data:datetime}")]
+        public async Task<ActionResult> RecalcularConsolidado(DateTime data)
+        {
+            await _consolidadoService.RecalcularConsolidadoAsync(data);
+            return NoContent();
+        }
+    }
+}
+
+// FluxoCaixa.API/Program.cs
+using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using FluxoCaixa.Application.Interfaces;
+using FluxoCaixa.Application.Services;
+using FluxoCaixa.Domain.Interfaces;
+using FluxoCaixa.Infrastructure.Data;
+using FluxoCaixa.Infrastructure.Repositories;
+using System.Reflection;
+using System.Text.Json.Serialization;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+    });
+
+// Database
+builder.Services.AddDbContext<FluxoCaixaDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Repositories
+builder.Services.AddScoped<ILancamentoRepository, LancamentoRepository>();
+builder.Services.AddScoped<IConsolidadoDiarioRepository, ConsolidadoDiarioRepository>();
+
+// Services
+builder.Services.AddScoped<ILancamentoService, LancamentoService>();
+builder.Services.AddScoped<IConsolidadoService, ConsolidadoService>();
+
+// Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "FluxoCaixa API",
+        Version = "v1",
+        Description = "API para controle de fluxo de caixa diário",
+        Contact = new OpenApiContact
+        {
+            Name = "Sistema FluxoCaixa",
+            Email = "contato@fluxocaixa.com"
+        }
+    });
+
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
+});
+
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", builder =>
+    {
+        builder.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader();
+    });
+});
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "FluxoCaixa API v1");
+        c.RoutePrefix = string.Empty; // Swagger na raiz
+    });
+}
+
+app.UseHttpsRedirection();
+app.UseCors("AllowAll");
+app.UseAuthorization();
+app.MapControllers();
+
+// Ensure database is created
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<FluxoCaixaDbContext>();
+    context.Database.EnsureCreated();
+}
+
+app.Run();
