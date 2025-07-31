@@ -1,0 +1,547 @@
+// =============================================
+// TESTES UNITÁRIOS
+// =============================================
+
+// FluxoCaixa.UnitTests/FluxoCaixa.UnitTests.csproj
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.6.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Moq" Version="4.20.69" />
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FluxoCaixa.Domain\FluxoCaixa.Domain.csproj" />
+    <ProjectReference Include="..\..\src\FluxoCaixa.Application\FluxoCaixa.Application.csproj" />
+    <ProjectReference Include="..\..\src\FluxoCaixa.Infrastructure\FluxoCaixa.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+
+// FluxoCaixa.UnitTests/Domain/Entities/LancamentoTests.cs
+using FluentAssertions;
+using FluxoCaixa.Domain.Entities;
+using FluxoCaixa.Domain.Enums;
+using FluxoCaixa.Domain.ValueObjects;
+
+namespace FluxoCaixa.UnitTests.Domain.Entities
+{
+    public class LancamentoTests
+    {
+        [Fact]
+        public void CriarLancamento_ComDadosValidos_DeveRetornarLancamentoValido()
+        {
+            // Arrange
+            var tipo = TipoLancamento.Credito;
+            var valor = new Money(100.50m);
+            var descricao = "Venda de produto";
+            var dataLancamento = DateTime.Today;
+
+            // Act
+            var lancamento = new Lancamento(tipo, valor, descricao, dataLancamento);
+
+            // Assert
+            lancamento.Should().NotBeNull();
+            lancamento.Id.Should().NotBeEmpty();
+            lancamento.Tipo.Should().Be(tipo);
+            lancamento.Valor.Should().Be(valor);
+            lancamento.Descricao.Should().Be(descricao);
+            lancamento.DataLancamento.Should().Be(dataLancamento);
+            lancamento.DataCriacao.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        }
+
+        [Fact]
+        public void CriarLancamento_SemDataLancamento_DeveUsarDataAtual()
+        {
+            // Arrange & Act
+            var lancamento = new Lancamento(TipoLancamento.Debito, new Money(50), "Compra material");
+
+            // Assert
+            lancamento.DataLancamento.Should().Be(DateTime.Today);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        [InlineData(null)]
+        public void CriarLancamento_ComDescricaoInvalida_DeveLancarExcecao(string descricaoInvalida)
+        {
+            // Arrange & Act & Assert
+            Action act = () => new Lancamento(TipoLancamento.Credito, new Money(100), descricaoInvalida);
+            act.Should().Throw<ArgumentException>().WithMessage("*Descrição é obrigatória*");
+        }
+
+        [Fact]
+        public void ObterValorComSinal_ParaCredito_DeveRetornarValorPositivo()
+        {
+            // Arrange
+            var valor = new Money(100);
+            var lancamento = new Lancamento(TipoLancamento.Credito, valor, "Teste");
+
+            // Act
+            var valorComSinal = lancamento.ObterValorComSinal();
+
+            // Assert
+            valorComSinal.Valor.Should().Be(100);
+        }
+
+        [Fact]
+        public void ObterValorComSinal_ParaDebito_DeveRetornarValorNegativo()
+        {
+            // Arrange
+            var valor = new Money(100);
+            var lancamento = new Lancamento(TipoLancamento.Debito, valor, "Teste");
+
+            // Act
+            var valorComSinal = lancamento.ObterValorComSinal();
+
+            // Assert
+            valorComSinal.Valor.Should().Be(-100);
+        }
+    }
+}
+
+// FluxoCaixa.UnitTests/Domain/ValueObjects/MoneyTests.cs
+using FluentAssertions;
+using FluxoCaixa.Domain.ValueObjects;
+
+namespace FluxoCaixa.UnitTests.Domain.ValueObjects
+{
+    public class MoneyTests
+    {
+        [Fact]
+        public void CriarMoney_ComValorPositivo_DeveRetornarValorCorreto()
+        {
+            // Arrange & Act
+            var money = new Money(123.456m);
+
+            // Assert
+            money.Valor.Should().Be(123.46m); // Arredondado para 2 casas decimais
+        }
+
+        [Fact]
+        public void CriarMoney_ComValorNegativo_DeveLancarExcecao()
+        {
+            // Arrange & Act & Assert
+            Action act = () => new Money(-10);
+            act.Should().Throw<ArgumentException>().WithMessage("*Valor não pode ser negativo*");
+        }
+
+        [Fact]
+        public void SomarMoney_DeveRetornarSomaCorreta()
+        {
+            // Arrange
+            var money1 = new Money(10.50m);
+            var money2 = new Money(5.25m);
+
+            // Act
+            var resultado = money1 + money2;
+
+            // Assert
+            resultado.Valor.Should().Be(15.75m);
+        }
+
+        [Fact]
+        public void SubtrairMoney_DeveRetornarSubtracaoCorreta()
+        {
+            // Arrange
+            var money1 = new Money(15.75m);
+            var money2 = new Money(5.25m);
+
+            // Act
+            var resultado = money1 - money2;
+
+            // Assert
+            resultado.Valor.Should().Be(10.50m);
+        }
+
+        [Fact]
+        public void MoneyZero_DeveRetornarValorZero()
+        {
+            // Arrange & Act
+            var zero = Money.Zero;
+
+            // Assert
+            zero.Valor.Should().Be(0);
+        }
+    }
+}
+
+// FluxoCaixa.UnitTests/Application/Services/LancamentoServiceTests.cs
+using FluentAssertions;
+using Moq;
+using FluxoCaixa.Application.DTOs;
+using FluxoCaixa.Application.Interfaces;
+using FluxoCaixa.Application.Services;
+using FluxoCaixa.Domain.Entities;
+using FluxoCaixa.Domain.Enums;
+using FluxoCaixa.Domain.Interfaces;
+using FluxoCaixa.Domain.ValueObjects;
+
+namespace FluxoCaixa.UnitTests.Application.Services
+{
+    public class LancamentoServiceTests
+    {
+        private readonly Mock<ILancamentoRepository> _mockLancamentoRepository;
+        private readonly Mock<IConsolidadoService> _mockConsolidadoService;
+        private readonly LancamentoService _lancamentoService;
+
+        public LancamentoServiceTests()
+        {
+            _mockLancamentoRepository = new Mock<ILancamentoRepository>();
+            _mockConsolidadoService = new Mock<IConsolidadoService>();
+            _lancamentoService = new LancamentoService(_mockLancamentoRepository.Object, _mockConsolidadoService.Object);
+        }
+
+        [Fact]
+        public async Task CriarLancamentoAsync_ComDadosValidos_DeveRetornarLancamentoDto()
+        {
+            // Arrange
+            var request = new LancamentoRequestDto(
+                TipoLancamento.Credito,
+                100.50m,
+                "Venda de produto",
+                DateTime.Today
+            );
+
+            var lancamentoEsperado = new Lancamento(
+                request.Tipo,
+                new Money(request.Valor),
+                request.Descricao,
+                request.DataLancamento
+            );
+
+            _mockLancamentoRepository
+                .Setup(x => x.AdicionarAsync(It.IsAny<Lancamento>()))
+                .ReturnsAsync(lancamentoEsperado);
+
+            _mockConsolidadoService
+                .Setup(x => x.RecalcularConsolidadoAsync(It.IsAny<DateTime>()))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var resultado = await _lancamentoService.CriarLancamentoAsync(request);
+
+            // Assert
+            resultado.Should().NotBeNull();
+            resultado.Id.Should().NotBeEmpty();
+            resultado.Tipo.Should().Be(request.Tipo);
+            resultado.Valor.Should().Be(request.Valor);
+            resultado.Descricao.Should().Be(request.Descricao);
+            resultado.DataLancamento.Should().Be(request.DataLancamento ?? DateTime.Today);
+
+            _mockLancamentoRepository.Verify(x => x.AdicionarAsync(It.IsAny<Lancamento>()), Times.Once);
+            _mockConsolidadoService.Verify(x => x.RecalcularConsolidadoAsync(It.IsAny<DateTime>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task ObterLancamentoPorIdAsync_ComIdExistente_DeveRetornarLancamento()
+        {
+            // Arrange
+            var id = Guid.NewGuid();
+            var lancamento = new Lancamento(TipoLancamento.Debito, new Money(50), "Compra material");
+
+            _mockLancamentoRepository
+                .Setup(x => x.ObterPorIdAsync(id))
+                .ReturnsAsync(lancamento);
+
+            // Act
+            var resultado = await _lancamentoService.ObterLancamentoPorIdAsync(id);
+
+            // Assert
+            resultado.Should().NotBeNull();
+            resultado!.Id.Should().Be(lancamento.Id);
+            resultado.Tipo.Should().Be(lancamento.Tipo);
+            resultado.Valor.Should().Be(lancamento.Valor.Valor);
+            resultado.Descricao.Should().Be(lancamento.Descricao);
+        }
+
+        [Fact]
+        public async Task ObterLancamentoPorIdAsync_ComIdInexistente_DeveRetornarNull()
+        {
+            // Arrange
+            var id = Guid.NewGuid();
+
+            _mockLancamentoRepository
+                .Setup(x => x.ObterPorIdAsync(id))
+                .ReturnsAsync((Lancamento?)null);
+
+            // Act
+            var resultado = await _lancamentoService.ObterLancamentoPorIdAsync(id);
+
+            // Assert
+            resultado.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task ExcluirLancamentoAsync_ComIdExistente_DeveRetornarTrueERecalcularConsolidado()
+        {
+            // Arrange
+            var id = Guid.NewGuid();
+            var dataLancamento = DateTime.Today;
+            var lancamento = new Lancamento(TipoLancamento.Credito, new Money(100), "Teste");
+
+            _mockLancamentoRepository
+                .Setup(x => x.ObterPorIdAsync(id))
+                .ReturnsAsync(lancamento);
+
+            _mockLancamentoRepository
+                .Setup(x => x.ExcluirAsync(id))
+                .ReturnsAsync(true);
+
+            _mockConsolidadoService
+                .Setup(x => x.RecalcularConsolidadoAsync(It.IsAny<DateTime>()))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var resultado = await _lancamentoService.ExcluirLancamentoAsync(id);
+
+            // Assert
+            resultado.Should().BeTrue();
+            _mockConsolidadoService.Verify(x => x.RecalcularConsolidadoAsync(It.IsAny<DateTime>()), Times.Once);
+        }
+    }
+}
+
+// FluxoCaixa.UnitTests/Application/Services/ConsolidadoServiceTests.cs
+using FluentAssertions;
+using Moq;
+using FluxoCaixa.Application.Services;
+using FluxoCaixa.Domain.Entities;
+using FluxoCaixa.Domain.Enums;
+using FluxoCaixa.Domain.Interfaces;
+using FluxoCaixa.Domain.ValueObjects;
+
+namespace FluxoCaixa.UnitTests.Application.Services
+{
+    public class ConsolidadoServiceTests
+    {
+        private readonly Mock<IConsolidadoDiarioRepository> _mockConsolidadoRepository;
+        private readonly Mock<ILancamentoRepository> _mockLancamentoRepository;
+        private readonly ConsolidadoService _consolidadoService;
+
+        public ConsolidadoServiceTests()
+        {
+            _mockConsolidadoRepository = new Mock<IConsolidadoDiarioRepository>();
+            _mockLancamentoRepository = new Mock<ILancamentoRepository>();
+            _consolidadoService = new ConsolidadoService(_mockConsolidadoRepository.Object, _mockLancamentoRepository.Object);
+        }
+
+        [Fact]
+        public async Task RecalcularConsolidadoAsync_ComLancamentos_DeveCalcularValoresCorretamente()
+        {
+            // Arrange
+            var data = DateTime.Today;
+            var lancamentos = new List<Lancamento>
+            {
+                new(TipoLancamento.Credito, new Money(100), "Venda 1"),
+                new(TipoLancamento.Credito, new Money(200), "Venda 2"),
+                new(TipoLancamento.Debito, new Money(50), "Compra 1"),
+                new(TipoLancamento.Debito, new Money(75), "Compra 2")
+            };
+
+            _mockLancamentoRepository
+                .Setup(x => x.ObterPorDataAsync(data))
+                .ReturnsAsync(lancamentos);
+
+            _mockConsolidadoRepository
+                .Setup(x => x.ObterPorDataAsync(data))
+                .ReturnsAsync((ConsolidadoDiario?)null);
+
+            _mockConsolidadoRepository
+                .Setup(x => x.SalvarAsync(It.IsAny<ConsolidadoDiario>()))
+                .ReturnsAsync((ConsolidadoDiario c) => c);
+
+            // Act
+            await _consolidadoService.RecalcularConsolidadoAsync(data);
+
+            // Assert
+            _mockConsolidadoRepository.Verify(x => x.SalvarAsync(It.Is<ConsolidadoDiario>(c =>
+                c.Data == data &&
+                c.TotalCreditos.Valor == 300 &&
+                c.TotalDebitos.Valor == 125 &&
+                c.SaldoDiario.Valor == 175 &&
+                c.QuantidadeLancamentos == 4
+            )), Times.Once);
+        }
+
+        [Fact]
+        public async Task ObterConsolidadoDiarioAsync_ComConsolidadoExistente_DeveRetornarConsolidado()
+        {
+            // Arrange
+            var data = DateTime.Today;
+            var consolidado = new ConsolidadoDiario(data, new Money(100), new Money(50), 2);
+
+            _mockConsolidadoRepository
+                .Setup(x => x.ObterPorDataAsync(data))
+                .ReturnsAsync(consolidado);
+
+            // Act
+            var resultado = await _consolidadoService.ObterConsolidadoDiarioAsync(data);
+
+            // Assert
+            resultado.Should().NotBeNull();
+            resultado.Data.Should().Be(data);
+            resultado.TotalCreditos.Should().Be(100);
+            resultado.TotalDebitos.Should().Be(50);
+            resultado.SaldoDiario.Should().Be(50);
+            resultado.QuantidadeLancamentos.Should().Be(2);
+        }
+
+        [Fact]
+        public async Task ObterRelatorioConsolidadoAsync_ParaPeriodo_DeveRetornarTodosDias()
+        {
+            // Arrange
+            var dataInicio = DateTime.Today.AddDays(-2);
+            var dataFim = DateTime.Today;
+            
+            var consolidados = new List<ConsolidadoDiario>
+            {
+                new(dataInicio, new Money(100), new Money(50), 2),
+                new(dataFim, new Money(200), new Money(75), 3)
+            };
+
+            _mockConsolidadoRepository
+                .Setup(x => x.ObterPorPeriodoAsync(dataInicio, dataFim))
+                .ReturnsAsync(consolidados);
+
+            // Act
+            var resultado = await _consolidadoService.ObterRelatorioConsolidadoAsync(dataInicio, dataFim);
+
+            // Assert
+            var resultadoList = resultado.ToList();
+            resultadoList.Should().HaveCount(3); // 3 dias no período
+            
+            // Primeiro dia
+            resultadoList[0].Data.Should().Be(dataInicio);
+            resultadoList[0].TotalCreditos.Should().Be(100);
+            
+            // Segundo dia (sem dados)
+            resultadoList[1].Data.Should().Be(dataInicio.AddDays(1));
+            resultadoList[1].TotalCreditos.Should().Be(0);
+            resultadoList[1].TotalDebitos.Should().Be(0);
+            
+            // Terceiro dia
+            resultadoList[2].Data.Should().Be(dataFim);
+            resultadoList[2].TotalCreditos.Should().Be(200);
+        }
+    }
+}
+
+// FluxoCaixa.UnitTests/Infrastructure/Repositories/LancamentoRepositoryIntegrationTests.cs
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using FluxoCaixa.Domain.Entities;
+using FluxoCaixa.Domain.Enums;
+using FluxoCaixa.Domain.ValueObjects;
+using FluxoCaixa.Infrastructure.Data;
+using FluxoCaixa.Infrastructure.Repositories;
+
+namespace FluxoCaixa.UnitTests.Infrastructure.Repositories
+{
+    public class LancamentoRepositoryIntegrationTests : IDisposable
+    {
+        private readonly FluxoCaixaDbContext _context;
+        private readonly LancamentoRepository _repository;
+
+        public LancamentoRepositoryIntegrationTests()
+        {
+            var options = new DbContextOptionsBuilder<FluxoCaixaDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+
+            _context = new FluxoCaixaDbContext(options);
+            _repository = new LancamentoRepository(_context);
+        }
+
+        [Fact]
+        public async Task AdicionarAsync_DeveSalvarLancamento()
+        {
+            // Arrange
+            var lancamento = new Lancamento(TipoLancamento.Credito, new Money(100), "Teste");
+
+            // Act
+            var resultado = await _repository.AdicionarAsync(lancamento);
+
+            // Assert
+            resultado.Should().NotBeNull();
+            resultado.Id.Should().NotBeEmpty();
+
+            var lancamentoSalvo = await _context.Lancamentos.FindAsync(resultado.Id);
+            lancamentoSalvo.Should().NotBeNull();
+            lancamentoSalvo!.Valor.Valor.Should().Be(100);
+        }
+
+        [Fact]
+        public async Task ObterPorDataAsync_DeveRetornarLancamentosDaData()
+        {
+            // Arrange
+            var data = DateTime.Today;
+            var lancamento1 = new Lancamento(TipoLancamento.Credito, new Money(100), "Teste 1", data);
+            var lancamento2 = new Lancamento(TipoLancamento.Debito, new Money(50), "Teste 2", data);
+            var lancamento3 = new Lancamento(TipoLancamento.Credito, new Money(75), "Teste 3", data.AddDays(1));
+
+            await _repository.AdicionarAsync(lancamento1);
+            await _repository.AdicionarAsync(lancamento2);
+            await _repository.AdicionarAsync(lancamento3);
+
+            // Act
+            var resultado = await _repository.ObterPorDataAsync(data);
+
+            // Assert
+            var lancamentos = resultado.ToList();
+            lancamentos.Should().HaveCount(2);
+            lancamentos.Should().Contain(l => l.Id == lancamento1.Id);
+            lancamentos.Should().Contain(l => l.Id == lancamento2.Id);
+            lancamentos.Should().NotContain(l => l.Id == lancamento3.Id);
+        }
+
+        [Fact]
+        public async Task ExcluirAsync_ComIdExistente_DeveRemoverLancamento()
+        {
+            // Arrange
+            var lancamento = new Lancamento(TipoLancamento.Credito, new Money(100), "Teste");
+            await _repository.AdicionarAsync(lancamento);
+
+            // Act
+            var resultado = await _repository.ExcluirAsync(lancamento.Id);
+
+            // Assert
+            resultado.Should().BeTrue();
+
+            var lancamentoExcluido = await _context.Lancamentos.FindAsync(lancamento.Id);
+            lancamentoExcluido.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task ExcluirAsync_ComIdInexistente_DeveRetornarFalse()
+        {
+            // Arrange
+            var idInexistente = Guid.NewGuid();
+
+            // Act
+            var resultado = await _repository.ExcluirAsync(idInexistente);
+
+            // Assert
+            resultado.Should().BeFalse();
+        }
+
+        public void Dispose()
+        {
+            _context.Dispose();
+        }
+    }
+}
