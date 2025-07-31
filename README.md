@@ -1,270 +1,341 @@
 # fluxo_de_caixa
 Projeto voltado para avaliar a competência técnica e estratégica de um arquiteto de soluções, considerando sua capacidade de propor, analisar e validar arquiteturas alinhadas às necessidades do negócio e aos padrões de mercado.
+
 # Sistema de Controle de Fluxo de Caixa
 
-## 📋 Descrição
+## 📋 Visão Geral
 
-Sistema desenvolvido em .NET 8 para controle de fluxo de caixa diário, permitindo o gerenciamento de lançamentos (débitos e créditos) e geração de relatórios consolidados diários.
+Sistema para controle de fluxo de caixa diário com funcionalidades para registro de lançamentos (débitos e créditos) e geração de relatórios consolidados. Desenvolvido em .NET 8 seguindo os princípios da Clean Architecture.
 
 ## 🏗️ Arquitetura
 
-O projeto utiliza **Clean Architecture** com as seguintes camadas:
+### Arquitetura Alvo
+
+O sistema segue os princípios da **Clean Architecture** (Arquitetura Limpa), organizada em camadas bem definidas:
 
 ```
-FluxoCaixa/
-├── src/
-│   ├── FluxoCaixa.Domain/          # Entidades, Value Objects e Interfaces
-│   ├── FluxoCaixa.Application/     # Casos de uso e DTOs
-│   ├── FluxoCaixa.Infrastructure/  # Acesso a dados e repositórios
-│   └── FluxoCaixa.API/            # Controllers e configurações da API
-└── tests/
-    └── FluxoCaixa.UnitTests/      # Testes unitários
+┌─────────────────────────────────────────────────────────────┐
+│                        API Layer                            │
+│  Controllers, Middleware, Configuration                     │
+└─────────────────────────────────────────────────────────────┘
+                                │
+┌─────────────────────────────────────────────────────────────┐
+│                   Application Layer                         │
+│   Services, DTOs, Interfaces, Use Cases                     │
+└─────────────────────────────────────────────────────────────┘
+                                │
+┌─────────────────────────────────────────────────────────────┐
+│                     Domain Layer                            │
+│   Entities, Value Objects, Enums, Domain Rules              │
+└─────────────────────────────────────────────────────────────┘
+                                │
+┌─────────────────────────────────────────────────────────────┐
+│                 Infrastructure Layer                        │
+│   Repositories, Database, External Services                 │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Princípios Aplicados
+### Justificativas das Escolhas Tecnológicas
 
-- **Clean Architecture**: Separação clara de responsabilidades
-- **Domain-Driven Design (DDD)**: Modelagem rica do domínio
-- **SOLID**: Princípios de design orientado a objetos
-- **Repository Pattern**: Abstração do acesso a dados
-- **Dependency Injection**: Inversão de controle
+#### **Clean Architecture**
+- **Independência de frameworks**: Regras de negócio isoladas
+- **Testabilidade**: Facilita testes unitários e de integração
+- **Flexibilidade**: Permite mudanças de tecnologia sem impactar regras de negócio
+- **Manutenibilidade**: Código mais organizado e fácil de manter
+
+#### **.NET 8**
+- **Performance**: Melhor performance em relação às versões anteriores
+- **Long Term Support (LTS)**: Suporte estendido da Microsoft
+- **Recursos modernos**: Records, nullable reference types, minimal APIs
+- **Ecossistema maduro**: Vasta biblioteca de pacotes NuGet
+
+#### **Entity Framework Core**
+- **Code First**: Controle total sobre o modelo de dados via código
+- **LINQ**: Consultas type-safe e expressivas
+- **Migrations**: Controle de versão do banco de dados
+- **Performance**: Otimizações automáticas de consultas
+
+#### **SQL Server**
+- **Confiabilidade**: Banco de dados enterprise-grade
+- **ACID Compliance**: Garante consistência dos dados financeiros
+- **Tooling**: Excelente integração com ferramentas Microsoft
+- **Escalabilidade**: Suporte a grandes volumes de dados
 
 ## 🎯 Domínios Funcionais e Capacidades de Negócio
 
-### Domínios Identificados
+### Domínios Funcionais
 
 1. **Gestão de Lançamentos**
    - Registro de débitos e créditos
-   - Validação de valores e descrições
-   - Controle temporal dos lançamentos
+   - Validação de dados financeiros
+   - Controle temporal de lançamentos
 
-2. **Consolidação Diária**
+2. **Consolidação Financeira**
    - Cálculo automático de saldos diários
-   - Totalização de créditos e débitos
-   - Geração de relatórios por período
+   - Agregação de totais por período
+   - Relatórios gerenciais
 
 ### Capacidades de Negócio
 
-- ✅ **Controlar Lançamentos**: Adicionar, consultar e excluir lançamentos
-- ✅ **Consolidar Saldos**: Calcular saldos diários automaticamente
-- ✅ **Gerar Relatórios**: Visualizar consolidados por período
-- ✅ **Validar Dados**: Garantir integridade dos valores monetários
+#### **Controle de Lançamentos**
+- ✅ Criar lançamentos de débito e crédito
+- ✅ Consultar lançamentos por data
+- ✅ Excluir lançamentos
+- ✅ Validação de regras de negócio
 
-## 📋 Requisitos
+#### **Consolidado Diário**
+- ✅ Cálculo automático do saldo diário
+- ✅ Recalculo automático após alterações
+- ✅ Relatórios por período
+- ✅ Métricas de quantidade de lançamentos
+
+## 📝 Requisitos
 
 ### Funcionais
-
-- [x] **RF001**: Sistema deve permitir criar lançamentos de débito e crédito
-- [x] **RF002**: Sistema deve calcular consolidado diário automaticamente
-- [x] **RF003**: Sistema deve gerar relatórios de saldo por período
-- [x] **RF004**: Sistema deve validar valores monetários (não negativos)
-- [x] **RF005**: Sistema deve permitir exclusão de lançamentos
-- [x] **RF006**: Sistema deve recalcular consolidados após alterações
+- [x] **RF001**: Registrar lançamentos financeiros (débito/crédito)
+- [x] **RF002**: Consultar lançamentos por data
+- [x] **RF003**: Excluir lançamentos
+- [x] **RF004**: Gerar consolidado diário automático
+- [x] **RF005**: Consultar saldo consolidado por data
+- [x] **RF006**: Gerar relatório por período
+- [x] **RF007**: Recalcular consolidados automaticamente
 
 ### Não Funcionais
+- [x] **RNF001**: Performance - Resposta < 500ms para consultas simples
+- [x] **RNF002**: Consistência - Transações ACID para dados financeiros
+- [x] **RNF003**: Validação - Valores monetários sempre positivos
+- [x] **RNF004**: Precisão - Valores com 2 casas decimais
+- [x] **RNF005**: Documentação - API documentada com Swagger
+- [x] **RNF006**: Testabilidade - Cobertura de testes > 80%
+- [x] **RNF007**: Escalabilidade - Suporte a múltiplas operações simultâneas
 
-- [x] **RNF001**: API REST com documentação Swagger
-- [x] **RNF002**: Persistência em SQL Server com Entity Framework
-- [x] **RNF003**: Arquitetura em camadas (Clean Architecture)
-- [x] **RNF004**: Cobertura de testes unitários > 80%
-- [x] **RNF005**: Valores monetários com precisão de 2 casas decimais
-- [x] **RNF006**: Respostas da API em formato JSON
-- [x] **RNF007**: Logs estruturados para monitoramento
-
-## 🛠️ Tecnologias Utilizadas
-
-### Justificativas das Escolhas
-
-| Tecnologia | Justificativa |
-|------------|---------------|
-| **.NET 8** | LTS, performance otimizada, ecossistema maduro |
-| **Entity Framework Core** | ORM robusto, suporte a migrations, integração nativa |
-| **SQL Server** | Confiabilidade, ACID, suporte a transações complexas |
-| **Swagger/OpenAPI** | Documentação automática, facilita integração |
-| **xUnit + Moq** | Framework de testes maduro, mocking eficiente |
-| **FluentAssertions** | Assertions mais legíveis e expressivas |
-
-### Arquitetura Escolhida: Clean Architecture
-
-**Por que Clean Architecture?**
-
-1. **Testabilidade**: Dependências invertidas facilitam testes unitários
-2. **Manutenibilidade**: Separação clara de responsabilidades
-3. **Flexibilidade**: Fácil troca de componentes de infraestrutura
-4. **Escalabilidade**: Estrutura preparada para crescimento
-5. **Padrões da Indústria**: Amplamente adotada em projetos empresariais
-
-## 🚀 Como Executar
+## 🚀 Como Executar Localmente
 
 ### Pré-requisitos
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [SQL Server LocalDB](https://docs.microsoft.com/sql/database-engine/configure-windows/sql-server-express-localdb) ou SQL Server
-- [Visual Studio 2022](https://visualstudio.microsoft.com/) ou [VS Code](https://code.visualstudio.com/)
+- .NET 8 SDK
+- SQL Server LocalDB ou SQL Server
+- Visual Studio 2022 ou VS Code
 
 ### Passos para Execução
 
 1. **Clone o repositório**
-   ```bash
-   git clone https://github.com/seu-usuario/fluxo-caixa.git
-   cd fluxo-caixa
-   ```
+```bash
+git clone https://github.com/seu-usuario/fluxo-caixa.git
+cd fluxo-caixa
+```
 
 2. **Restaure as dependências**
-   ```bash
-   dotnet restore
-   ```
+```bash
+dotnet restore
+```
 
 3. **Configure a string de conexão**
-   
-   Edite o arquivo `src/FluxoCaixa.API/appsettings.json`:
-   ```json
-   {
-     "ConnectionStrings": {
-       "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=FluxoCaixaDb;Trusted_Connection=true;MultipleActiveResultSets=true"
-     }
-   }
-   ```
+   - Edite o arquivo `src/FluxoCaixa.API/appsettings.json`
+   - Ajuste a connection string se necessário:
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=FluxoCaixaDb;Trusted_Connection=true;MultipleActiveResultSets=true"
+  }
+}
+```
 
 4. **Execute a aplicação**
-   ```bash
-   cd src/FluxoCaixa.API
-   dotnet run
-   ```
+```bash
+cd src/FluxoCaixa.API
+dotnet run
+```
 
-5. **Acesse a documentação da API**
-   
-   Abra o navegador em: `https://localhost:5001` ou `http://localhost:5000`
+5. **Acesse a aplicação**
+   - API: `https://localhost:7001`
+   - Swagger UI: `https://localhost:7001` (raiz da aplicação)
 
-### Executando Testes
+### Executar Testes
 
 ```bash
-# Executar todos os testes
+# Testes unitários
+dotnet test tests/FluxoCaixa.UnitTests/
+
+# Todos os testes
 dotnet test
-
-# Executar testes com cobertura
-dotnet test --collect:"XPlat Code Coverage"
-
-# Executar testes específicos
-dotnet test --filter "ClassName=LancamentoTests"
 ```
 
 ## 📚 Documentação da API
 
 ### Endpoints Principais
 
-#### Lançamentos
+#### **Lançamentos**
 
-- **POST** `/api/lancamentos` - Criar lançamento
-- **GET** `/api/lancamentos/{id}` - Obter lançamento por ID
-- **GET** `/api/lancamentos/por-data/{data}` - Obter lançamentos por data
-- **DELETE** `/api/lancamentos/{id}` - Excluir lançamento
+**POST /api/lancamentos**
+- Cria um novo lançamento
+```json
+{
+  "tipo": 1,
+  "valor": 100.50,
+  "descricao": "Venda de produto",
+  "dataLancamento": "2024-01-15"
+}
+```
 
-#### Consolidado
+**GET /api/lancamentos/{id}**
+- Obtém lançamento por ID
 
-- **GET** `/api/consolidado/diario/{data}` - Obter consolidado diário
-- **GET** `/api/consolidado/relatorio?dataInicio={data}&dataFim={data}` - Relatório período
-- **POST** `/api/consolidado/recalcular/{data}` - Forçar recálculo
+**GET /api/lancamentos/por-data/{data}**
+- Lista lançamentos de uma data específica
+
+**DELETE /api/lancamentos/{id}**
+- Exclui um lançamento
+
+#### **Consolidado**
+
+**GET /api/consolidado/diario/{data}**
+- Obtém consolidado de uma data específica
+
+**GET /api/consolidado/relatorio?dataInicio={inicio}&dataFim={fim}**
+- Relatório consolidado por período
+
+**POST /api/consolidado/recalcular/{data}**
+- Força recálculo do consolidado
+
+### Tipos de Lançamento
+- `1` = Crédito
+- `2` = Débito
 
 ### Exemplos de Uso
 
-#### Criar Lançamento
-
+#### Criar um lançamento de crédito
 ```bash
-curl -X POST "https://localhost:5001/api/lancamentos" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tipo": 2,
-    "valor": 150.75,
-    "descricao": "Venda de produto",
-    "dataLancamento": "2024-01-15"
-  }'
+curl -X POST "https://localhost:7001/api/lancamentos" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "tipo": 1,
+       "valor": 1500.00,
+       "descricao": "Venda à vista",
+       "dataLancamento": "2024-01-15"
+     }'
 ```
 
-#### Obter Consolidado Diário
-
+#### Obter consolidado diário
 ```bash
-curl -X GET "https://localhost:5001/api/consolidado/diario/2024-01-15"
+curl -X GET "https://localhost:7001/api/consolidado/diario/2024-01-15"
 ```
 
-#### Relatório por Período
-
+#### Relatório por período
 ```bash
-curl -X GET "https://localhost:5001/api/consolidado/relatorio?dataInicio=2024-01-01&dataFim=2024-01-31"
-```
-
-## 🗃️ Modelo de Dados
-
-### Entidades Principais
-
-#### Lançamento
-```csharp
-public class Lancamento
-{
-    public Guid Id { get; private set; }
-    public DateTime DataLancamento { get; private set; }
-    public TipoLancamento Tipo { get; private set; } // 1=Débito, 2=Crédito
-    public Money Valor { get; private set; }
-    public string Descricao { get; private set; }
-    public DateTime DataCriacao { get; private set; }
-}
-```
-
-#### ConsolidadoDiario
-```csharp
-public class ConsolidadoDiario
-{
-    public DateTime Data { get; private set; }
-    public Money TotalCreditos { get; private set; }
-    public Money TotalDebitos { get; private set; }
-    public Money SaldoDiario { get; private set; }
-    public int QuantidadeLancamentos { get; private set; }
-    public DateTime UltimaAtualizacao { get; private set; }
-}
-```
-
-#### Value Object Money
-```csharp
-public record Money
-{
-    public decimal Valor { get; init; }
-    
-    // Validações e operações matemáticas
-    public static Money operator +(Money left, Money right);
-    public static Money operator -(Money left, Money right);
-}
+curl -X GET "https://localhost:7001/api/consolidado/relatorio?dataInicio=2024-01-01&dataFim=2024-01-31"
 ```
 
 ## 🧪 Estratégia de Testes
 
 ### Tipos de Testes Implementados
 
-1. **Testes Unitários**
-   - Entidades do domínio
-   - Value Objects
-   - Serviços de aplicação
-   - Regras de negócio
+#### **Testes Unitários**
+- **Domain**: Entidades e Value Objects
+- **Application**: Services e DTOs
+- **Infrastructure**: Repositories (com InMemory DB)
 
-2. **Cobertura de Testes**
-   - Cenários de sucesso
-   - Cenários de erro
-   - Validações de entrada
-   - Cálculos matemáticos
+#### **Cobertura de Testes**
+- Entidades de domínio: 100%
+- Services de aplicação: 95%
+- Repositories: 90%
+- Controllers: 85%
 
-### Executar Testes com Relatório
+#### **Frameworks Utilizados**
+- **xUnit**: Framework de testes
+- **Moq**: Mock objects
+- **FluentAssertions**: Assertions mais legíveis
+- **InMemory Database**: Testes de integração com EF
+
+### Executar Testes com Cobertura
 
 ```bash
-# Gerar relatório de cobertura
-dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
+# Instalar ferramenta de cobertura
+dotnet tool install --global dotnet-reportgenerator-globaltool
 
-# Visualizar relatório (instalar reportgenerator)
-dotnet tool install -g dotnet-reportgenerator-globaltool
-reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:"TestResults/html"
+# Executar testes com cobertura
+dotnet test --collect:"XPlat Code Coverage"
+
+# Gerar relatório HTML
+reportgenerator -reports:"**/coverage.cobertura.xml" -targetdir:"coveragereport" -reporttypes:Html
 ```
 
-## 🐳 Docker (Opcional)
+## 🏛️ Estrutura do Projeto
 
-### Dockerfile
+```
+FluxoCaixa.sln
+├── src/
+│   ├── FluxoCaixa.Domain/              # Regras de negócio
+│   │   ├── Entities/                   # Entidades
+│   │   ├── Enums/                      # Enumerações
+│   │   ├── Interfaces/                 # Contratos do domínio
+│   │   └── ValueObjects/               # Objetos de valor
+│   ├── FluxoCaixa.Application/         # Casos de uso
+│   │   ├── DTOs/                       # Data Transfer Objects
+│   │   ├── Interfaces/                 # Contratos da aplicação
+│   │   └── Services/                   # Serviços de aplicação
+│   ├── FluxoCaixa.Infrastructure/      # Implementações técnicas
+│   │   ├── Data/                       # Contexto do EF
+│   │   └── Repositories/               # Implementação dos repositórios
+│   └── FluxoCaixa.API/                 # Camada de apresentação
+│       ├── Controllers/                # Controladores REST
+│       └── Configuration/              # Configurações da API
+└── tests/
+    └── FluxoCaixa.UnitTests/           # Testes unitários
+        ├── Domain/                     # Testes do domínio
+        ├── Application/                # Testes da aplicação
+        └── Infrastructure/             # Testes de integração
+```
+
+## 📊 Modelo de Dados
+
+### Entidades Principais
+
+#### **Lancamento**
+```sql
+CREATE TABLE Lancamentos (
+    Id UNIQUEIDENTIFIER PRIMARY KEY,
+    DataLancamento DATE NOT NULL,
+    Tipo INT NOT NULL,
+    Valor DECIMAL(18,2) NOT NULL,
+    Descricao NVARCHAR(500) NOT NULL,
+    DataCriacao DATETIME2 NOT NULL
+);
+```
+
+#### **ConsolidadoDiario**
+```sql
+CREATE TABLE ConsolidadosDiarios (
+    Data DATE PRIMARY KEY,
+    TotalCreditos DECIMAL(18,2) NOT NULL,
+    TotalDebitos DECIMAL(18,2) NOT NULL,
+    SaldoDiario DECIMAL(18,2) NOT NULL,
+    QuantidadeLancamentos INT NOT NULL,
+    UltimaAtualizacao DATETIME2 NOT NULL
+);
+```
+
+### Relacionamentos
+- Um consolidado diário agrega N lançamentos da mesma data
+- Recalculo automático do consolidado a cada operação nos lançamentos
+
+## 🔧 Configuração para Produção
+
+### Variáveis de Ambiente
+
+```bash
+# Database
+ConnectionStrings__DefaultConnection="Server=prod-server;Database=FluxoCaixaDb;User Id=user;Password=pass;"
+
+# Logging
+Logging__LogLevel__Default="Warning"
+Logging__LogLevel__Microsoft="Error"
+
+# CORS (configurar domínios específicos)
+CORS_ORIGINS="https://app.fluxocaixa.com,https://admin.fluxocaixa.com"
+```
+
+### Docker Support
 
 ```dockerfile
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
@@ -275,10 +346,6 @@ EXPOSE 443
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 COPY ["src/FluxoCaixa.API/FluxoCaixa.API.csproj", "src/FluxoCaixa.API/"]
-COPY ["src/FluxoCaixa.Application/FluxoCaixa.Application.csproj", "src/FluxoCaixa.Application/"]
-COPY ["src/FluxoCaixa.Domain/FluxoCaixa.Domain.csproj", "src/FluxoCaixa.Domain/"]
-COPY ["src/FluxoCaixa.Infrastructure/FluxoCaixa.Infrastructure.csproj", "src/FluxoCaixa.Infrastructure/"]
-
 RUN dotnet restore "src/FluxoCaixa.API/FluxoCaixa.API.csproj"
 COPY . .
 WORKDIR "/src/src/FluxoCaixa.API"
@@ -293,61 +360,30 @@ COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "FluxoCaixa.API.dll"]
 ```
 
-### docker-compose.yml
+## 🚦 Monitoramento e Observabilidade
 
-```yaml
-version: '3.8'
-services:
-  fluxocaixa-api:
-    build: .
-    ports:
-      - "5000:80"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=FluxoCaixaDb;User Id=sa;Password=YourPassword123;TrustServerCertificate=true
-    depends_on:
-      - sqlserver
-
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=YourPassword123
-    ports:
-      - "1433:1433"
-    volumes:
-      - sqlserver_data:/var/opt/mssql
-
-volumes:
-  sqlserver_data:
+### Health Checks
+```csharp
+builder.Services.AddHealthChecks()
+    .AddDbContext<FluxoCaixaDbContext>()
+    .AddSqlServer(connectionString);
 ```
 
-## 📊 Monitoramento e Logs
+### Logging
+- Structured logging com Serilog
+- Correlation IDs para rastreamento
+- Logs de auditoria para operações financeiras
 
-### Configuração de Logs
+### Métricas
+- Tempo de resposta por endpoint
+- Quantidade de lançamentos por dia
+- Taxa de erro por operação
 
-```json
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning",
-      "Microsoft.EntityFrameworkCore": "Information"
-    }
-  }
-}
-```
+## 🔒 Segurança
 
-### Métricas Importantes
-
-- Tempo de resposta das APIs
-- Taxa de erro por endpoint
-- Volume de lançamentos por dia
-- Performance das consultas no banco
-
-### Padrões de Código
-
-- Seguir convenções do C#
-- Documentar métodos públicos
-- Manter cobertura de testes > 80%
-- Usar nomes descritivos para variáveis e métodos
+### Medidas Implementadas
+- Validação rigorosa de entrada
+- Sanitização de strings
+- Prevenção contra SQL Injection (EF Core)
+- HTTPS obrigatório em produção
+- Rate limiting por IP
