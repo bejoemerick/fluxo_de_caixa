@@ -61,7 +61,7 @@ O sistema segue os princípios da **Clean Architecture** (Arquitetura Limpa), or
 - **Tooling**: Excelente integração com ferramentas Microsoft
 - **Escalabilidade**: Suporte a grandes volumes de dados
 
-## 🎯 Domínios Funcionais e Capacidades de Negócio
+##  Domínios Funcionais e Capacidades de Negócio
 
 ### Domínios Funcionais
 
@@ -78,18 +78,18 @@ O sistema segue os princípios da **Clean Architecture** (Arquitetura Limpa), or
 ### Capacidades de Negócio
 
 #### **Controle de Lançamentos**
-- ✅ Criar lançamentos de débito e crédito
-- ✅ Consultar lançamentos por data
-- ✅ Excluir lançamentos
-- ✅ Validação de regras de negócio
+-  Criar lançamentos de débito e crédito
+-  Consultar lançamentos por data
+-  Excluir lançamentos
+-  Validação de regras de negócio
 
 #### **Consolidado Diário**
-- ✅ Cálculo automático do saldo diário
-- ✅ Recalculo automático após alterações
-- ✅ Relatórios por período
-- ✅ Métricas de quantidade de lançamentos
+-  Cálculo automático do saldo diário
+-  Recalculo automático após alterações
+-  Relatórios por período
+-  Métricas de quantidade de lançamentos
 
-## 📝 Requisitos
+##  Requisitos
 
 ### Funcionais
 - [x] **RF001**: Registrar lançamentos financeiros (débito/crédito)
@@ -109,7 +109,7 @@ O sistema segue os princípios da **Clean Architecture** (Arquitetura Limpa), or
 - [x] **RNF006**: Testabilidade - Cobertura de testes > 80%
 - [x] **RNF007**: Escalabilidade - Suporte a múltiplas operações simultâneas
 
-## 🚀 Como Executar Localmente
+##  Como Executar Localmente
 
 ### Pré-requisitos
 
@@ -161,7 +161,7 @@ dotnet test tests/FluxoCaixa.UnitTests/
 dotnet test
 ```
 
-## 📚 Documentação da API
+##  Documentação da API
 
 ### Endpoints Principais
 
@@ -226,7 +226,7 @@ curl -X GET "https://localhost:7001/api/consolidado/diario/2024-01-15"
 curl -X GET "https://localhost:7001/api/consolidado/relatorio?dataInicio=2024-01-01&dataFim=2024-01-31"
 ```
 
-## 🧪 Estratégia de Testes
+##  Estratégia de Testes
 
 ### Tipos de Testes Implementados
 
@@ -260,7 +260,7 @@ dotnet test --collect:"XPlat Code Coverage"
 reportgenerator -reports:"**/coverage.cobertura.xml" -targetdir:"coveragereport" -reporttypes:Html
 ```
 
-## 🏛️ Estrutura do Projeto
+## 🏛 Estrutura do Projeto
 
 ```
 FluxoCaixa.sln
@@ -287,7 +287,7 @@ FluxoCaixa.sln
         └── Infrastructure/             # Testes de integração
 ```
 
-## 📊 Modelo de Dados
+##  Modelo de Dados
 
 ### Entidades Principais
 
@@ -360,7 +360,7 @@ COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "FluxoCaixa.API.dll"]
 ```
 
-## 🚦 Monitoramento e Observabilidade
+##  Monitoramento e Observabilidade
 
 ### Health Checks
 ```csharp
@@ -379,7 +379,7 @@ builder.Services.AddHealthChecks()
 - Quantidade de lançamentos por dia
 - Taxa de erro por operação
 
-## 🔒 Segurança
+##  Segurança
 
 ### Medidas Implementadas
 - Validação rigorosa de entrada
