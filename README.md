@@ -7,7 +7,7 @@ Projeto voltado para avaliar a competência técnica e estratégica de um arquit
 
 Sistema para controle de fluxo de caixa diário com funcionalidades para registro de lançamentos (débitos e créditos) e geração de relatórios consolidados. Desenvolvido em .NET 8 seguindo os princípios da Clean Architecture.
 
-## 🏗 Arquitetura
+##  Arquitetura
 
 ### Arquitetura Alvo
 
@@ -92,22 +92,25 @@ O sistema segue os princípios da **Clean Architecture** (Arquitetura Limpa), or
 ##  Requisitos
 
 ### Funcionais
-- [x] **RF001**: Registrar lançamentos financeiros (débito/crédito)
-- [x] **RF002**: Consultar lançamentos por data
-- [x] **RF003**: Excluir lançamentos
-- [x] **RF004**: Gerar consolidado diário automático
-- [x] **RF005**: Consultar saldo consolidado por data
-- [x] **RF006**: Gerar relatório por período
-- [x] **RF007**: Recalcular consolidados automaticamente
+-  **RF001**: Registrar lançamentos financeiros (débito/crédito)
+-  **RF002**: Consultar lançamentos por data
+-  **RF003**: Editar/excluir lançamentos mantendo integridade dos dados
+-  **RF004**: Gerar consolidado diário automático
+-  **RF005**: Consultar saldo consolidado por data
+-  **RF006**: Gerar relatório por período
+-  **RF007**: Exportar relatórios em CSV e PDF
+-  **RF008**: Reprocessar saldo consolidado automaticamente após alterações em lançamentos
 
 ### Não Funcionais
-- [x] **RNF001**: Performance - Resposta < 500ms para consultas simples
-- [x] **RNF002**: Consistência - Transações ACID para dados financeiros
-- [x] **RNF003**: Validação - Valores monetários sempre positivos
-- [x] **RNF004**: Precisão - Valores com 2 casas decimais
-- [x] **RNF005**: Documentação - API documentada com Swagger
-- [x] **RNF006**: Testabilidade - Cobertura de testes > 80%
-- [x] **RNF007**: Escalabilidade - Suporte a múltiplas operações simultâneas
+-  **RNF001**: Compatibilidade com Chrome, Firefox e Edge.
+-  **RNF002**: Interface responsiva (<2s em operações comuns)
+-  **RNF003**: Dados persistentes em banco relacional ACID
+-  **RNF004**: Validação de valores (positivos, 2 decimais)
+-  **RNF005**: Documentação pública (GitHub) com guias de instalação/uso
+-  **RNF006**: API documentada via Swagger/OpenAPI
+-  **RNF007**: Segurança contra injeção e validação de entradas
+-  **RNF008**: Escalabilidade para 1.000 lançamentos/dia sem perda de desempenho
+-  **RNF009**: Testes automatizados (cobertura ≥80% unitários/integração)
 
 ##  Como Executar Localmente
 
@@ -260,7 +263,7 @@ dotnet test --collect:"XPlat Code Coverage"
 reportgenerator -reports:"**/coverage.cobertura.xml" -targetdir:"coveragereport" -reporttypes:Html
 ```
 
-## 🏛 Estrutura do Projeto
+##  Estrutura do Projeto
 
 ```
 FluxoCaixa.sln
@@ -319,7 +322,7 @@ CREATE TABLE ConsolidadosDiarios (
 - Um consolidado diário agrega N lançamentos da mesma data
 - Recalculo automático do consolidado a cada operação nos lançamentos
 
-## 🔧 Configuração para Produção
+##  Configuração para Produção
 
 ### Variáveis de Ambiente
 
