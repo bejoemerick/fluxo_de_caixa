@@ -3,11 +3,11 @@ Projeto voltado para avaliar a competência técnica e estratégica de um arquit
 
 # Sistema de Controle de Fluxo de Caixa
 
-## 📋 Visão Geral
+##  Visão Geral
 
 Sistema para controle de fluxo de caixa diário com funcionalidades para registro de lançamentos (débitos e créditos) e geração de relatórios consolidados. Desenvolvido em .NET 8 seguindo os princípios da Clean Architecture.
 
-## 🏗️ Arquitetura
+## 🏗 Arquitetura
 
 ### Arquitetura Alvo
 
